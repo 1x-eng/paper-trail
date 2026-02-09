@@ -1,0 +1,39 @@
+services:
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    command:
+      - "--set"
+      - "receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317"
+      - "--set"
+      - "receivers.otlp.protocols.http.endpoint=0.0.0.0:4318"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["/gateway"]
+    ports:
+      - "3000:3000"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: gateway
+      WORKER_URL: http://worker:3001
+      RUST_LOG: info
+    depends_on:
+      - jaeger
+      - worker
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["/worker"]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: worker
+      RUST_LOG: info
+    depends_on:
+      - jaeger
