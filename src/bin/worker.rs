@@ -73,11 +73,11 @@ async fn handle_work(
     fields(work_type = "computation", work.success, otel.status_code)
 )]
 async fn simulate_work() -> Result<(), String> {
-    // Compute random values upfront — ThreadRng is !Send, can't hold across .await
+    // thread_rng() is !Send so we gotta do this before the await
     let (sleep_ms, should_fail) = {
         let mut rng = rand::thread_rng();
         let ms = if rng.gen::<f32>() < 0.05 {
-            rng.gen_range(500..800) // slow path — simulates slow DB or network
+            rng.gen_range(500..800) // slow path, pretend this is a slow DB query or something
         } else {
             rng.gen_range(50..150)
         };
