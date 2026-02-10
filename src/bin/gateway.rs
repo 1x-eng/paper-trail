@@ -37,6 +37,7 @@ async fn process_request(
         http.route = "/process",
         http.status_code = tracing::field::Empty,
         otel.status_code = tracing::field::Empty,
+        otel.status_message = tracing::field::Empty,
         request_id = %req.id,
     );
 
@@ -44,6 +45,7 @@ async fn process_request(
         if !validate_input(&req) {
             tracing::Span::current().record("http.status_code", 400);
             tracing::Span::current().record("otel.status_code", "ERROR");
+            tracing::Span::current().record("otel.status_message", "invalid input");
             return Json(ProcessResponse {
                 id: req.id,
                 status: String::from("error"),
@@ -61,9 +63,10 @@ async fn process_request(
                 message: worker_resp.message,
             })
         } else {
-            tracing::warn!(error = %worker_resp.message, "worker reported failure");
+            tracing::error!(error = %worker_resp.message, "worker reported failure");
             tracing::Span::current().record("http.status_code", 500);
             tracing::Span::current().record("otel.status_code", "ERROR");
+            tracing::Span::current().record("otel.status_message", worker_resp.message.as_str());
             Json(ProcessResponse {
                 id: req.id,
                 status: "error".into(),

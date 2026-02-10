@@ -70,7 +70,7 @@ async fn handle_work(
 
 #[tracing::instrument(
     name = "simulate_work",
-    fields(work_type = "computation", work.success, otel.status_code)
+    fields(work_type = "computation", work.success, otel.status_code, otel.status_message)
 )]
 async fn simulate_work() -> Result<(), String> {
     // thread_rng() is !Send so we gotta do this before the await
@@ -88,10 +88,12 @@ async fn simulate_work() -> Result<(), String> {
     tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
 
     if should_fail {
-        tracing::warn!("computation failed, no retries left");
+        let err = "computation failed after exhausting retries";
+        tracing::error!(exception.message = err, "computation error");
         tracing::Span::current().record("work.success", false);
         tracing::Span::current().record("otel.status_code", "ERROR");
-        return Err("simulated failure".to_string());
+        tracing::Span::current().record("otel.status_message", err);
+        return Err(err.to_string());
     }
 
     tracing::info!("computation completed");
